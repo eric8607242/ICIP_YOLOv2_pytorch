@@ -108,7 +108,7 @@ class LossFunction(nn.Module):
         bounding_box_ground_truth_responsible_iou = bounding_box_ground_truth_iou[coord_responsible_mask].view(-1, 5).float().cuda()
         bounding_box_ground_truth_responsible = bounding_box_ground_truth[coord_responsible_mask].view(-1, 5).float()
 
-        print(bounding_box_ground_truth_responsible_iou[:, 4].mean())
+        print(bounding_box_ground_truth_responsible_iou.mean())
         responsible_confidence_loss = F.mse_loss(bounding_box_prediction_responsible[:, 4], bounding_box_ground_truth_responsible_iou[:, 4])
         responsible_xy_loss = F.mse_loss(bounding_box_prediction_responsible[:, :2], bounding_box_ground_truth_responsible[:, :2])
         responsible_wh_loss = F.mse_loss(torch.sqrt(bounding_box_prediction_responsible[:, 2:4]), torch.sqrt(bounding_box_ground_truth_responsible[:, 2:4]))

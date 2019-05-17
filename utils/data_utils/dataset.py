@@ -64,8 +64,14 @@ class ICIPDetectionset(Dataset):
 
         cell_x = center_x // cell_size 
         cell_y = center_y // cell_size
+
+        width = xmax - xmin
+        height = ymax - ymin
+
+        relative_x = xmin - cell_x*cell_size
+        relative_y = ymin - cell_y*cell_size
         
-        return (xmin/self.image_size, ymin/self.image_size, int(cell_x)-1, int(cell_y)-1, (xmax-xmin)/self.image_size, (ymax-ymin)/self.image_size)
+        return (relative_x/self.image_size, relative_y/self.image_size, int(cell_x)-1, int(cell_y)-1, width/self.image_size, height/self.image_size)
 
     def __len__(self):
         return len(self.annotation_path)
