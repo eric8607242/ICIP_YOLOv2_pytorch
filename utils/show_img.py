@@ -25,9 +25,12 @@ def show_img(image_array, predict_bnd, label_bnd):
 
     for l in range(0, label_bnd.size(0)):
         if label_bnd[l, 4] != 0:
-
-            cell_x = l // 7+1
-            cell_y = l % 7+1
+            cell_n = l+1
+            cell_x = cell_n // 7 +1
+            cell_y = cell_n % 7
+#             print(cell_n)
+#             print(cell_x)
+#             print(cell_y)
             cell_x = cell_x*(448/7)
             cell_y = cell_y*(448/7)
 
@@ -36,12 +39,27 @@ def show_img(image_array, predict_bnd, label_bnd):
                 p_index = 0
             else:
                 p_index = 5
-            x1, y1 = cell_x+predict_bnd[l, 0+p_index] * 448, cell_y+predict_bnd[l, 1+p_index] * 448
-            x2, y2 = cell_x+(predict_bnd[l, 0+p_index]+predict_bnd[l, 2+p_index])*448, cell_y+(predict_bnd[l, 1+p_index]+predict_bnd[l, 3+p_index])*448
+#             print(predict_bnd[l])
+#             print(label_bnd[l])
+
+            width = predict_bnd[l, 2+p_index] *448
+            height = predict_bnd[l, 3+p_index] *448
+            center_x = cell_x+predict_bnd[l, 0+p_index] * 448
+            center_y = cell_y+predict_bnd[l, 1+p_index] * 448
+
+            x1, y1 = center_x - 0.5*width, center_y - 0.5*height
+            x2, y2 = center_x + 0.5*width, center_y + 0.5*height
             _, predict_class = predict_bnd[l, -13:].max(0)
 
-            l_x1, l_y1 = cell_x+label_bnd[l, 0]*448, cell_y+label_bnd[l, 1]*448
-            l_x2, l_y2 = cell_x+(label_bnd[l, 0]+label_bnd[l, 2])*448, cell_y+(label_bnd[l, 1]+label_bnd[l, 3])*448
+            l_width = label_bnd[l, 2] *448
+            l_height = label_bnd[l, 3]*448
+            l_center_x = cell_x+label_bnd[l, 0] * 448
+            l_center_y = cell_y+label_bnd[l, 1] * 448
+
+            l_x1, l_y1 = l_center_x - 0.5*l_width, l_center_y - 0.5*l_height
+            l_x2, l_y2 = l_center_x + 0.5*l_width, l_center_y + 0.5*l_height
+#             print(l_x1)
+#             print(l_y1)
             _, l_class = label_bnd[l, -13:].max(0)
 
             draw.text((x1, y1), classes[predict_class], fill=128)
@@ -49,7 +67,5 @@ def show_img(image_array, predict_bnd, label_bnd):
             draw.rectangle([x1, y1, x2, y2], outline=128)
             draw.rectangle([l_x1, l_y1, l_x2, l_y2], outline=256)
 
-
     image.save("./1.png")
-    
 

@@ -33,8 +33,9 @@ net.fc = nn.Sequential(
             #nn.LogSigmoid()
         )
 net_d = models.resnet18(pretrained=True)
-for param in net_d.parameters():
-    param.requires_grad = False
+for i, param in enumerate(net_d.parameters()):
+    if i < 40:
+        param.requires_grad = False
 
 num_ftrs_d = net_d.fc.in_features
 net_d.fc = nn.Sequential(
@@ -85,7 +86,7 @@ data1 = ICIPDetectionset("./data/train_cdc/train_images/", "./data/train_cdc/tra
 dataloader = DataLoader(data1, batch_size=100, shuffle=True, num_workers=4)
 
 print("training")
-num_epochs = 50 
+num_epochs = 100 
 for epoch in range(num_epochs):
     if epoch % 5 == 0:
         for param_group in optimizer.param_groups:

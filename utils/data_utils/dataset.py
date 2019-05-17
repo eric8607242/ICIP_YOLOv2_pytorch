@@ -57,20 +57,22 @@ class ICIPDetectionset(Dataset):
         ymin = int(bndbox["ymin"])*ratio_y
         ymax = int(bndbox["ymax"])*ratio_y
 
-        center_x = int((xmax-xmin) + xmin)
-        center_y = int((ymax-ymin) + ymin)
+        width = xmax - xmin
+        height = ymax - ymin
+
+        center_x = int(width/2 + xmin)
+        center_y = int(height/2 + ymin)
 
         cell_size = self.image_size / self.S
 
         cell_x = center_x // cell_size 
-        cell_y = center_y // cell_size
+        cell_y = center_y // cell_size 
 
-        width = xmax - xmin
-        height = ymax - ymin
-
-        relative_x = xmin - cell_x*cell_size
-        relative_y = ymin - cell_y*cell_size
+        relative_x = center_x - cell_x*cell_size
+        relative_y = center_y - cell_y*cell_size
         
+        # print("xmin %f, xmax %f, center_x %f, cell_x %f, relative %f, width %f" % (xmin, xmax, center_x, cell_x, relative_x, width))
+        # print("ymin %f, ymax %f, center_y %f, cell_y %f, relative %f, height %f" % (ymin, ymax, center_y, cell_y, relative_y, height))
         return (relative_x/self.image_size, relative_y/self.image_size, int(cell_x)-1, int(cell_y)-1, width/self.image_size, height/self.image_size)
 
     def __len__(self):
