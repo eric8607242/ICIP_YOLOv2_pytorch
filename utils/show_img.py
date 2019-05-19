@@ -7,40 +7,43 @@ import numpy as np
 import matplotlib.patches as patches
 
 import torch
-import torchvision.transforms.functional as F
+import torch.nn.functional as F
+import torchvision.transforms.functional as TF
 
 from PIL import ImageDraw
 classes = ['aquarium', 'bottle', 'bowl', 'box', 'bucket', 'plastic_bag', 'plate', 'styrofoam', 'tire', 'toilet', 'tub', 'washing_machine', 'water_tower']
 
-def show_img(image_array, predict_bnd, label_bnd):
+def show_img(image_array, predict_bnd, label_bnd, S=7):
     """
-        image_array(1, 3, 224, 224)
     """
     image_size = 448
-    image = F.to_pil_image(image_array)
+    image = TF.to_pil_image(image_array)
     draw = ImageDraw.Draw(image)
 
     predict_bnd = predict_bnd.contiguous().view(-1, 23)
+    predict_bnd[:, :10] = F.sigmoid(predict_bnd[:, :10])
+    predict_bnd[:, 10:] = F.softmax(predict_bnd[:, 10:], dim=1)
     label_bnd = label_bnd.contiguous().view(-1, 23)
 
     for l in range(0, label_bnd.size(0)):
         if label_bnd[l, 4] != 0:
             cell_n = l+1
-            cell_x = cell_n // 7 +1
-            cell_y = cell_n % 7
+            cell_x = cell_n // S +1
+            cell_y = cell_n % S
 #             print(cell_n)
 #             print(cell_x)
 #             print(cell_y)
-            cell_x = cell_x*(448/7)
-            cell_y = cell_y*(448/7)
+            cell_x = cell_x*(448/S)
+            cell_y = cell_y*(448/S)
 
             p_index = 0
             if predict_bnd[l, 4] > predict_bnd[l, 9]:
                 p_index = 0
             else:
                 p_index = 5
-#             print(predict_bnd[l])
-#             print(label_bnd[l])
+            #print("-------------------")
+            #print(predict_bnd[l])
+            #print(label_bnd[l])
 
             width = predict_bnd[l, 2+p_index] *448
             height = predict_bnd[l, 3+p_index] *448

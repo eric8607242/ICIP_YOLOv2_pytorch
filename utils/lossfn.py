@@ -18,6 +18,11 @@ class LossFunction(nn.Module):
 
     def compute_iou(self, box1, box2):
 
+        iou_mask = (box1[:, 0] - box2[:, 1]) >= 0
+        iou_mask_1 = (box2[:, 0] - box1[:, 1]) >= 0
+        iou_mask_2 = (box2[:, 2] - box1[:, 3]) >= 0
+        iou_mask_3 = (box1[:, 2] - box2[:, 3]) >= 0
+
         box1_w = box1[:, 2] - box1[:, 0]
         box1_h = box1[:, 3] - box1[:, 1]
 
@@ -37,6 +42,11 @@ class LossFunction(nn.Module):
 
         inter = inter_box_w * inter_box_h
         iou = inter/ (box1_area + box2_area - inter + 1e-6)
+        iou[iou_mask] = 0
+        iou[iou_mask_1] = 0
+        iou[iou_mask_2] = 0
+        iou[iou_mask_3] = 0
+
 
         return iou
 
@@ -56,7 +66,9 @@ class LossFunction(nn.Module):
         # predict 5 values, so the top 10 values is the box prediction
         coord_prediction = predictions[coord_mask].view(-1, 23)
         bounding_box_prediction = coord_prediction[:, :10].contiguous().view(-1, 5)
+        bounding_box_prediction = F.sigmoid(bounding_box_prediction)
         class_prediction = coord_prediction[:, 10:]
+        class_prediction = F.softmax(class_prediction, dim=1)
 
         coord_gound_truth = ground_truth[coord_mask].view(-1, 23)
         bounding_box_ground_truth = coord_gound_truth[:, :10].contiguous().view(-1, 5)

@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import math
 import torch.utils.model_zoo as model_zoo
@@ -136,7 +137,6 @@ class ResNet(nn.Module):
         self.layer5 = self._make_layer(block, 512, layers[3], stride=2)
         self.layer5 = self._make_detnet_layer(in_channels=512)
         self.conv_end = nn.Conv2d(256, 23, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn_end = nn.BatchNorm2d(23)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
@@ -181,10 +181,7 @@ class ResNet(nn.Module):
         x = self.layer4(x)
         x = self.layer5(x)
         x = self.conv_end(x)
-        x = self.bn_end(x)
-        x = F.sigmoid(x) 
         x = x.permute(0,2,3,1) #(-1,7,7,30)
-
         return x
 
 
@@ -202,4 +199,4 @@ def resnet18(pretrained=False, **kwargs):
 class Flatten(nn.Module):
     def forward(self, x):
         N = x.size(0)
-        return x.contiguous().view(n, -1)
+        return x.contiguous().view(N, -1)
