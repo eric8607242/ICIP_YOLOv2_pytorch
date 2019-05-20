@@ -123,13 +123,12 @@ class LossFunction(nn.Module):
         print(bounding_box_ground_truth_responsible_iou.mean())
         responsible_confidence_loss = F.mse_loss(bounding_box_prediction_responsible[:, 4], bounding_box_ground_truth_responsible_iou[:, 4])
         responsible_xy_loss = F.mse_loss(bounding_box_prediction_responsible[:, :2], bounding_box_ground_truth_responsible[:, :2])
-        responsible_wh_loss = F.mse_loss(torch.sqrt(bounding_box_prediction_responsible[:, 2:4]), torch.sqrt(bounding_box_ground_truth_responsible[:, 2:4]))
+        responsible_wh_loss = F.mse_loss(bounding_box_prediction_responsible[:, 2:4], bounding_box_ground_truth_responsible[:, 2:4])
 
         # class loss
         class_loss = F.mse_loss(class_prediction.float(), class_ground_truth.float())
 
         total_loss = self.lambda_coord*(responsible_xy_loss + responsible_wh_loss) + responsible_confidence_loss + self.lambda_noobj*noobj_loss + class_loss
-        # total_loss = responsible_xy_loss
         return total_loss
 
 

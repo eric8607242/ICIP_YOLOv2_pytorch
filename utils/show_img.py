@@ -17,7 +17,7 @@ def show_img(image_array, predict_bnd, label_bnd, S=7):
     """
     """
     image_size = 448
-    image = TF.to_pil_image(image_array)
+    image = TF.to_pil_image(image_array.byte())
     draw = ImageDraw.Draw(image)
 
     predict_bnd = predict_bnd.contiguous().view(-1, 23)
