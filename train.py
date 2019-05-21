@@ -1,6 +1,6 @@
 from utils.data_utils.dataset import ICIPClassifierset, ICIPDetectionset
 from utils.resnet import resnet18, Flatten
-from utils.lossfn import LossFunction
+from utils.lossfnv2 import LossFunction
 from utils.show_img import show_img
 
 import numpy as np
@@ -21,13 +21,15 @@ class DetectionModel:
                     nn.Softmax()
                 )
 
-        self.loss = LossFunction(14, 2, 13, 5, 0.5)
+        self.loss = LossFunction(14, 5, 13, 5, 0.5)
         # self.optimizer = torch.optim.SGD(self.net.parameters(), lr=5e-3, momentum=0.9)
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=1e-5)
 
         self.transform = transforms.Compose([ToTensor()])
-        self.data = ICIPDetectionset("./data/train_cdc/train_images/", "./data/train_cdc/train_annotations/", 448, 14, transform=self.transform)
+        self.data = ICIPDetectionset("./data/train_cdc/train_images/", "./data/train_cdc/train_annotations/", 448, 14, 5, transform=self.transform)
         self.dataloader = DataLoader(self.data, batch_size=32, shuffle=True, num_workers=4)
+
+        self.anchor_box = self.data.getkmeans()
 
     def _init_model(self):
 
@@ -40,10 +42,10 @@ class DetectionModel:
         #class_dict = {k: v for k, v in class_dict.items() if k in net_dict}
         #net_dict.update(class_dict)
         #self.net.load_state_dict(net_dict)
-        self.net.load_state_dict(torch.load('yolo_detection.pth'))
+        self.net.load_state_dict(torch.load('./weight/3_19_detection.pth'))
         for net_name, net_param in self.net.named_parameters():
-            if net_name.startswith("layer3") or net_name.startswith("layer2") or net_name.startswith("layer1"):
-                net_param.requires_grad=True
+            if net_name.startswith("layer2") or net_name.startswith("layer1")or net_name.startswith("layer3"):
+                net_param.requires_grad=False
             else:
                 net_param.requires_grad=True
         self.net.cuda()
@@ -65,7 +67,7 @@ class DetectionModel:
                 # Forward pass
                 outputs = self.net(batch_data)
 
-                loss = self.loss(outputs, batch_label)
+                loss, bounding_prediction = self.loss(outputs, batch_label, self.anchor_box)
                 for param in self.net.parameters():
                     if param.grad is not None:
                         pass
@@ -78,9 +80,10 @@ class DetectionModel:
                 self.optimizer.step()
                 
                 if (i+1) % 5 == 0:
-                    show_img(batch_data[0].cpu(), outputs[0].cpu(), batch_label[0].cpu(), 14)
+                    show_img(batch_data[0].cpu(), bounding_prediction[0].cpu(), batch_label[0].cpu(), 14, 5)
                     print ('Epoch [{}/{}], Step {}, Loss: {:.4f}'.format(epoch+1, num_epochs,i+1, loss.item()))
-        torch.save(self.net.state_dict(),'yolo_detection.pth')
+            if (epoch+1) % 5 ==0 :
+                torch.save(self.net.state_dict(),'./weight/1_'+str(epoch)+'_detection.pth')
 
 class ClassifierModel:
     def __init__(self):

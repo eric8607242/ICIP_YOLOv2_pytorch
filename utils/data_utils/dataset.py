@@ -13,8 +13,10 @@ import csv
 import PIL.Image
 
 from torch.utils.data import Dataset, DataLoader
+from sklearn.cluster import KMeans
 
 classes = ['aquarium', 'bottle', 'bowl', 'box', 'bucket', 'plastic_bag', 'plate', 'styrofoam', 'tire', 'toilet', 'tub', 'washing_machine', 'water_tower']
+
 
 class ICIPDetectionset(Dataset):
     def __init__(self, image_dir, annotation_dir, image_size, S=7, B=2, transform=None):
@@ -32,6 +34,35 @@ class ICIPDetectionset(Dataset):
         self.images_path.sort()
         self.annotation_path.sort()
 
+        self.kmeans = self._kmean()
+        print(self.kmeans.cluster_centers_)
+
+    def _kmean(self):
+        kmean_list = []
+        for idx in range(len(self.annotation_path)):
+            xml_file = self.annotation_path[idx]
+            image_file = self.images_path[idx]
+            with open(xml_file) as fd:
+                xml_data = xmltodict.parse(fd.read())
+                xml_data = xml_data["annotation"]
+
+            _, ratio_x, ratio_y = self._image_processing(image_file, xml_data)
+
+            if "object" in xml_data:
+                if type(xml_data["object"]) == list:
+                    for i, ob in enumerate(xml_data["object"]):
+                        _, _, _, _, w, h =self._get_reat_axis(ob["bndbox"], ratio_x, ratio_y)
+                        kmean_list.append([w, h])
+                else:
+                    ob = xml_data["object"]
+                    _, _, _, _, w, h =self._get_reat_axis(ob["bndbox"], ratio_x, ratio_y)
+                    kmean_list.append([w, h])
+
+        kmean_list = np.asarray(kmean_list)
+        kmeans = KMeans(n_clusters=5, random_state=0).fit(kmean_list)
+
+        return kmeans
+                        
     def _xml_parser(self, xml_path):
         xml_data = None
         with open(xml_path) as fd:
@@ -73,7 +104,7 @@ class ICIPDetectionset(Dataset):
         
         # print("xmin %f, xmax %f, center_x %f, cell_x %f, relative %f, width %f" % (xmin, xmax, center_x, cell_x, relative_x, width))
         # print("ymin %f, ymax %f, center_y %f, cell_y %f, relative %f, height %f" % (ymin, ymax, center_y, cell_y, relative_y, height))
-        return (relative_x/self.image_size, relative_y/self.image_size, int(cell_x)-1, int(cell_y)-1, width/self.image_size, height/self.image_size)
+        return (relative_x/cell_size, relative_y/cell_size, int(cell_x)-1, int(cell_y)-1, width/self.image_size, height/self.image_size)
 
     def __len__(self):
         return len(self.annotation_path)
@@ -88,16 +119,16 @@ class ICIPDetectionset(Dataset):
 
         image, ratio_x, ratio_y = self._image_processing(img_path, xml_data)
 
-        if "object" not in xml_data:
-            pass
-        else:
+        if "object" in xml_data:
             if type(xml_data["object"]) == list:
                 for i, ob in enumerate(xml_data["object"]):
                     object_class = np.zeros(13)
                     x, y, cell_x, cell_y, w, h =self._get_reat_axis(ob["bndbox"], ratio_x, ratio_y)
                     # Each cell has B bounding box
-                    for b in range(self.B):
-                        label[cell_x, cell_y, b*5:(b+1)*5] = np.array([x, y, w, h, 1])
+                    #for b in range(self.B):
+                    #    label[cell_x, cell_y, b*5:(b+1)*5] = np.array([x, y, w, h, 1])
+                    b_id = self.kmeans.predict([[w, h]])[0]
+                    label[cell_x, cell_y, b_id*5:(b_id+1)*5] = np.array([x, y, w, h, 1])
                     object_name = ob["name"]
                     object_class[classes.index(object_name)] = 1
                     label[cell_x, cell_y, -13:] = object_class
@@ -106,8 +137,9 @@ class ICIPDetectionset(Dataset):
                 object_class = np.zeros(13)
                 x, y, cell_x, cell_y, w, h = self._get_reat_axis(ob["bndbox"], ratio_x, ratio_y)
 
-                for b in range(self.B):
-                    label[cell_x, cell_y, b*5:(b+1)*5] = np.array([x, y, w, h, 1])
+                #for b_id in range(self.B):
+                b_id = self.kmeans.predict([[w, h]])[0]
+                label[cell_x, cell_y, b_id*5:(b_id+1)*5] = np.array([x, y, w, h, 1])
                 object_name = ob["name"]
                 object_class[classes.index(object_name)] = 1
                 label[cell_x, cell_y, -13:] = object_class
@@ -117,6 +149,11 @@ class ICIPDetectionset(Dataset):
         if self.transform:
             sample = self.transform(sample)
         return sample
+
+    def getkmeans(self):
+        cluster = self.kmeans.cluster_centers_
+        return cluster
+
 
 class ICIPClassifierset(Dataset):
     "The dataset to train the classifier of yolo"
