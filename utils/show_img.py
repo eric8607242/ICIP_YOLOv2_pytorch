@@ -23,6 +23,10 @@ def show_img(image_array, predict_bnd, label_bnd, S=7, B=2):
     predict_bnd = predict_bnd.contiguous().view(-1, 38)
     predict_cls = predict_bnd[:, 25:].view(-1, 13)
     predict_bnd = predict_bnd[:, :25].view(-1, B, 5)
+    predict_bnd[:, :, 2] = predict_bnd[:, :, :2].sigmoid()
+    predict_bnd[:, :, 2:4] = (predict_bnd[:, :, 2:4].sigmoid()*10).exp() * anchor_box
+    predict_cls = F.softmax(predict_cls, dim=-1)
+
     label_cls = label_bnd[:, :, 25:].view(-1, 13)
     label_bnd = label_bnd[:, :, :25].view(-1, B, 5)
 
