@@ -42,9 +42,9 @@ class DetectionModel:
         #class_dict = {k: v for k, v in class_dict.items() if k in net_dict}
         #net_dict.update(class_dict)
         #self.net.load_state_dict(net_dict)
-        self.net.load_state_dict(torch.load('./weight/3_19_detection.pth'))
+        self.net.load_state_dict(torch.load('./weight/2_9_detection.pth'))
         for net_name, net_param in self.net.named_parameters():
-            if net_name.startswith("layer2") or net_name.startswith("layer1")or net_name.startswith("layer3"):
+            if net_name.startswith("layer1"):
                 net_param.requires_grad=False
             else:
                 net_param.requires_grad=True
@@ -83,7 +83,7 @@ class DetectionModel:
                     show_img(batch_data[0].cpu(), bounding_prediction[0].cpu(), batch_label[0].cpu(), 14, 5)
                     print ('Epoch [{}/{}], Step {}, Loss: {:.4f}'.format(epoch+1, num_epochs,i+1, loss.item()))
             if (epoch+1) % 5 ==0 :
-                torch.save(self.net.state_dict(),'./weight/1_'+str(epoch)+'_detection.pth')
+                torch.save(self.net.state_dict(),'./weight/3_'+str(epoch)+'_detection.pth')
 
 class ClassifierModel:
     def __init__(self):

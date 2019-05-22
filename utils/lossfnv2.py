@@ -11,8 +11,7 @@ class LossFunction(nn.Module):
         self.C = C
 
         # Increase the loss from bounding box coordinate predictions
-        # and decrease the loss from cofidence predictions for boxes 
-        # that don't contain object
+        # and decrease the loss from cofidence predictions for boxes # that don't contain object
         self.lambda_coord = lambda_coord
         self.lambda_noobj = lambda_noobj
 
@@ -74,7 +73,8 @@ class LossFunction(nn.Module):
         return_out = return_out.view(-1, 38)
         return_bnd = return_out[:, :25].view(-1, self.B, 5)
         return_bnd[:, :, :2] = return_bnd[:, :, :2].sigmoid()
-        return_bnd[:, :, 2:4] = return_bnd[:, :, 2:4].exp() * anchor_box
+        return_bnd[:, :, 2:4] = (return_bnd[:, :, 2:4].sigmoid()*10).exp() * anchor_box
+        return_bnd[:, :, 4] = return_bnd[:, :, 4].sigmoid()
         return_cls = F.softmax(return_out[:, 25:], dim=1)
 
         return_out[:, :25] = return_bnd.view(-1, 25)
@@ -87,7 +87,8 @@ class LossFunction(nn.Module):
         coord_prediction = predictions[coord_mask].view(-1, 38)
         bounding_box_prediction = coord_prediction[:, :25].contiguous().view(-1, self.B, 5)
         bounding_box_prediction[:, :, :2] = bounding_box_prediction[:, :, :2].sigmoid()
-        bounding_box_prediction[:, :, 2:4]  = bounding_box_prediction[:, :, 2:4].exp() * anchor_box
+        bounding_box_prediction[:, :, 2:4]  = (bounding_box_prediction[:, :, 2:4].sigmoid()*10).exp() * anchor_box
+        bounding_box_prediction[:, :, 4] = bounding_box_prediction[:, :, 4].sigmoid()
 
         class_prediction = coord_prediction[:, 25:]
         class_prediction = F.softmax(class_prediction, dim=1)
@@ -142,13 +143,13 @@ class LossFunction(nn.Module):
         bounding_box_ground_truth_responsible_iou = bounding_box_ground_truth_iou[coord_responsible_mask].view(-1, 5).float().cuda()
         bounding_box_ground_truth_responsible = bounding_box_ground_truth[coord_responsible_mask].view(-1, 5).float().cuda()
 
-        responsible_confidence_loss = F.mse_loss(bounding_box_ground_truth_responsible_iou[:, 4], bounding_box_prediction_responsible[:, 4])
+        responsible_confidence_loss = F.mse_loss(bounding_box_prediction_responsible[:, 4], bounding_box_ground_truth_responsible_iou[:, 4])
         responsible_xy_loss = F.mse_loss(bounding_box_prediction_responsible[:, :2], bounding_box_ground_truth_responsible[:, :2])
         responsible_wh_loss = F.mse_loss(bounding_box_prediction_responsible[:, 2:4], bounding_box_ground_truth_responsible[:, 2:4])
 
         # class loss
         class_loss = F.mse_loss(class_prediction.float(), class_ground_truth.float())
-        total_loss = self.lambda_coord*(responsible_xy_loss + responsible_wh_loss) + responsible_confidence_loss + self.lambda_noobj*noobj_loss + class_loss
+        total_loss = self.lambda_coord*(responsible_xy_loss + responsible_wh_loss) + 2*responsible_confidence_loss + self.lambda_noobj*noobj_loss + class_loss
 
         return total_loss, return_out.view(-1, 14, 14, 38)
 
