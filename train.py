@@ -24,6 +24,7 @@ if __name__ == "__main__":
 
     data = Detectionset(
                 kmean,
+                config["classes"],
                 config["train"]["train_image_folder"],
                 config["train"]["train_annot_folder"],
                 config["model"]["input_size"],

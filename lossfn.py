@@ -9,11 +9,11 @@ class LossFunction(nn.Module):
         self.S = S
         self.B = B
         self.C = C
-        self.cell_predictions = self.B*5+self.C
-        self.bnd_predictions = self.B*5
+        self.C_predict = self.B*5+self.C
+        self.B_predict = self.B*5
 
-        # Increase the loss from bounding box coordinate predictions
-        # and decrease the loss from cofidence predictions for boxes # that don't contain object
+        # Increase the loss from bounding box coordinate predicts
+        # and decrease the loss from cofidence predicts for boxes # that don't contain object
         self.lambda_coord = lambda_coord
         self.lambda_noobj = lambda_noobj
 
@@ -51,66 +51,64 @@ class LossFunction(nn.Module):
 
         return iou
 
-    def _gen_mask(self, ground_truth):
+    def _gen_mask(self, target):
 
         # Get the all bounding that confidence score is > 0 and == 0
         # size is [:, :, :]
-        mask_ground_truth = ground_truth[:, :, :, :self.bnd_predictions].view(-1, self.S, self.S, self.B, self.B)
-        mask_ground_truth = mask_ground_truth[:, :, :, :, 4].sum(dim=-1)
-        coord_mask = mask_ground_truth[:, :, :] > 0
-        noobj_mask = mask_ground_truth[:, :, :] == 0
+        mask_target = target[:, :, :, :self.B_predict].view(-1, self.S, self.S, self.B, self.B)
+        mask_target = mask_target[:, :, :, :, 4].sum(dim=-1)
+        coord_mask = mask_target[:, :, :] > 0
+        noobj_mask = mask_target[:, :, :] == 0
 
-        # Make their size same as the ground_truth by unsqueeze and expand_as
-        coord_mask = coord_mask.unsqueeze(-1).expand_as(ground_truth)
-        noobj_mask = noobj_mask.unsqueeze(-1).expand_as(ground_truth)
+        # Make their size same as the target by unsqueeze and expand_as
+        coord_mask = coord_mask.unsqueeze(-1).expand_as(target)
+        noobj_mask = noobj_mask.unsqueeze(-1).expand_as(target)
 
         return coord_mask, noobj_mask
 
         
-    def forward(self, predictions, ground_truth, anchor_box):
+    def forward(self, predicts, target, anchor_box):
         anchor_box = torch.FloatTensor(anchor_box).cuda()
-        N = predictions.size()[0]
+        N = predicts.size()[0]
 
-        coord_mask, noobj_mask = self._gen_mask(ground_truth)
+        coord_mask, noobj_mask = self._gen_mask(target)
 
         # Because each cell has two bounding boxs, and each bounding box
-        # predict 5 values, so the top 10 values is the box prediction
-        coord_prediction = predictions[coord_mask].view(-1, self.cell_predictions)
-        bounding_box_prediction = coord_prediction[:, :self.bnd_predictions].contiguous().view(-1, self.B, 5)
-        bounding_box_prediction[:, :, :2] = bounding_box_prediction[:, :, :2].sigmoid()
-        bounding_box_prediction[:, :, 2:4]  = (bounding_box_prediction[:, :, 2:4].sigmoid()*10).exp() * anchor_box
-        bounding_box_prediction[:, :, 4] = bounding_box_prediction[:, :, 4].sigmoid()
+        # predict 5 values, so the top 10 values is the box predict
+        coord_predict = predicts[coord_mask].view(-1, self.C_predict)
+        bnd_predict = coord_predict[:, :self.B_predict].contiguous().view(-1, self.B, 5)
+        bnd_predict[:, :, :2] = bnd_predict[:, :, :2].sigmoid()
+        bnd_predict[:, :, 2:4]  = (bnd_predict[:, :, 2:4].sigmoid()*10).exp() * anchor_box
+        bnd_predict[:, :, 4] = bnd_predict[:, :, 4].sigmoid()
 
-        class_prediction = coord_prediction[:, self.bnd_predictions:]
-        class_prediction = F.softmax(class_prediction, dim=1)
+        class_predict = coord_predict[:, self.B_predict:]
+        class_predict = F.softmax(class_predict, dim=1)
 
-        coord_gound_truth = ground_truth[coord_mask].view(-1, self.cell_predictions)
-        bounding_box_ground_truth = coord_gound_truth[:, :self.bnd_predictions].contiguous().view(-1, self.B, 5)
-        class_ground_truth = coord_gound_truth[:, self.bnd_predictions:]
+        coord_gound_truth = target[coord_mask].view(-1, self.C_predict)
+        bnd_target = coord_gound_truth[:, :self.B_predict].contiguous().view(-1, self.B, 5)
+        class_target = coord_gound_truth[:, self.B_predict:]
 
         # Compute not contain obj loss which is calculated by confidence
-        noobj_prediction = predictions[noobj_mask].view(-1, self.cell_predictions)
-        noobj_ground_truth = ground_truth[noobj_mask].view(-1, self.cell_predictions)
+        noobj_predict = predicts[noobj_mask].view(-1, self.C_predict)
+        noobj_target = target[noobj_mask].view(-1, self.C_predict)
 
-        noobj_prediction_confindence_mask = torch.zeros(noobj_prediction.size()).byte()
+        noobj_predict_confindence_mask = torch.zeros(noobj_predict.size()).byte()
 
         for b in range(self.B):
-            noobj_prediction_confindence_mask[:, 4+5*b] = 1;
+            noobj_predict_confindence_mask[:, 4+5*b] = 1;
 
-        noobj_prediction_confidence = noobj_prediction[noobj_prediction_confindence_mask]
-        noobj_ground_truth_confidence = noobj_ground_truth[noobj_prediction_confindence_mask]
+        noobj_predict_confidence = noobj_predict[noobj_predict_confindence_mask]
+        noobj_target_confidence = noobj_target[noobj_predict_confindence_mask]
 
-        noobj_loss = F.mse_loss(noobj_prediction_confidence.float(), noobj_ground_truth_confidence.float()) * self.lambda_noobj
-
-        # We only want one bounding box predictor to be responsible for each object
-        coord_responsible_mask = torch.zeros(bounding_box_prediction.size(0), bounding_box_prediction.size(1)).byte()
-        coord_noresponsible_mask = torch.zeros(bounding_box_prediction.size(0), bounding_box_prediction.size(1)).byte()
-        bounding_box_ground_truth_iou = torch.zeros(bounding_box_ground_truth.size())
+        # We only want one bounding box predictor to be respon for each object
+        coord_respon_mask = torch.zeros(bnd_predict.size(0), bnd_predict.size(1)).byte()
+        coord_norespon_mask = torch.zeros(bnd_predict.size(0), bnd_predict.size(1)).byte()
+        bnd_target_iou = torch.zeros(bnd_target.size())
 
 
-        for i in range(0, bounding_box_ground_truth.size(0)):
-            box1 = bounding_box_prediction[i].double()
-            box2 = bounding_box_ground_truth[i].double()
+        for i in range(0, bnd_target.size(0)):
+            box1 = bnd_predict[i].double()
+            box2 = bnd_target[i].double()
 
             box1_sides = Variable(torch.FloatTensor(box1.size()))
             box2_sides = Variable(torch.FloatTensor(box1.size()))
@@ -123,23 +121,23 @@ class LossFunction(nn.Module):
 
             # box1 => [x0, y0, x1, y1], box2 => [x0, y0, x1, y1]
             iou = self.compute_iou(box1_sides[:, :4], box2_sides[:, :4])
-            responsible_iou_index = torch.argmax(box2[:, 4])
+            respon_iou_index = torch.argmax(box2[:, 4])
 
-            coord_responsible_mask[i, responsible_iou_index] = 1
-            bounding_box_ground_truth_iou[i, responsible_iou_index] = iou[responsible_iou_index]
+            coord_respon_mask[i, respon_iou_index] = 1
+            bnd_target_iou[i, respon_iou_index] = iou[respon_iou_index]
     
-        bounding_box_prediction_responsible = bounding_box_prediction[coord_responsible_mask].view(-1, 5).float().cuda()
+        bnd_predict_respon = bnd_predict[coord_respon_mask].view(-1, 5).float().cuda()
 
-        bounding_box_ground_truth_responsible_iou = bounding_box_ground_truth_iou[coord_responsible_mask].view(-1, 5).float().cuda()
-        bounding_box_ground_truth_responsible = bounding_box_ground_truth[coord_responsible_mask].view(-1, 5).float().cuda()
+        bnd_target_respon_iou = bnd_target_iou[coord_respon_mask].view(-1, 5).float().cuda()
+        bnd_target_respon = bnd_target[coord_respon_mask].view(-1, 5).float().cuda()
 
-        responsible_confidence_loss = F.mse_loss(bounding_box_prediction_responsible[:, 4], bounding_box_ground_truth_responsible_iou[:, 4])
-        responsible_xy_loss = F.mse_loss(bounding_box_prediction_responsible[:, :2], bounding_box_ground_truth_responsible[:, :2])
-        responsible_wh_loss = F.mse_loss(bounding_box_prediction_responsible[:, 2:4], bounding_box_ground_truth_responsible[:, 2:4])
+        confidence_loss = F.mse_loss(bnd_predict_respon[:, 4], bnd_target_respon_iou[:, 4])
+        noobj_loss = F.mse_loss(noobj_predict_confidence.float(), noobj_target_confidence.float()) * self.lambda_noobj
+        xy_loss = F.mse_loss(bnd_predict_respon[:, :2], bnd_target_respon[:, :2])
+        wh_loss = F.mse_loss(bnd_predict_respon[:, 2:4], bnd_target_respon[:, 2:4])
+        class_loss = F.mse_loss(class_predict.float(), class_target.float())
 
-        # class loss
-        class_loss = F.mse_loss(class_prediction.float(), class_ground_truth.float())
-        total_loss = self.lambda_coord*(responsible_xy_loss + responsible_wh_loss) + 2*responsible_confidence_loss + self.lambda_noobj*noobj_loss + class_loss
+        total_loss = self.lambda_coord*(xy_loss + wh_loss) + 2*confidence_loss + self.lambda_noobj*noobj_loss + class_loss
 
         return total_loss
 

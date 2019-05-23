@@ -1,4 +1,6 @@
 {
+    "classes" :["aquarium", "bottle", "bowl", "box", "bucket", "plastic_bag", "plate", "styrofoam", "tire", "toilet", "tub", "washing_machine", "water_tower"], 
+
     "model" : {
         "input_size" : 448,
         "max_box_per_image" : 10,

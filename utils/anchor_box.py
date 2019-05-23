@@ -7,40 +7,31 @@ import numpy as np
 import xmltodict
 import pickle
 
+from utils.util import parse_xml
+
 
 def calculate_anchor(input_size, train_annot_folder, saved_kmean_name):
     annot_path_list = [join(train_annot_folder, f) for f in listdir(train_annot_folder) if isfile(join(train_annot_folder, f))]
-
     annot_path_list.sort()
 
     kmean_list = []
-
     for annot_name in annot_path_list:
-        with open(annot_name) as fd:
-            xml_data = xmltodict.parse(fd.read())
-            xml_data = xml_data["annotation"]
+        xml_data = parse_xml(annot_name)
 
         ratio_x, ratio_y = get_ratio(input_size, xml_data)
+        for ob in xml_data["object"]:
+            w, h = get_wh(input_size, ob["bndbox"], ratio_x, ratio_y)
+            kmean_list.append([w, h])
 
-        if "object" in xml_data:
-            if type(xml_data["object"]) == list:
-                for ob in xml_data["object"]:
-                    w, h = get_wh(input_size, ob["bndbox"], ratio_x, ratio_y)
-                    
-                    kmean_list.append([w, h])
-            else:
-                w, h = get_wh(input_size, xml_data["object"]["bndbox"], ratio_x, ratio_y)
-
-                kmean_list.append([w, h])
     kmean_list = np.asarray(kmean_list)
     kmeans = KMeans(n_clusters=5, random_state=0).fit(kmean_list)
-    print(kmeans.cluster_centers_)
-
     pickle.dump(kmeans, open(saved_kmean_name, 'wb'))
+
 
 def get_kmean(pretrained_kmean):
     kmeans = pickle.load(open(pretrained_kmean, 'rb'))
     return kmeans
+
 
 def get_anchor(kmean):
     anchor_box = kmean.cluster_centers_

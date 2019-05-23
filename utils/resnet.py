@@ -5,10 +5,7 @@ import torch.utils.model_zoo as model_zoo
 import torch.nn.functional as F
 
 
-__all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
-           'resnet152']
-
-
+__all__ = ['resnet18']
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
 }
@@ -52,48 +49,7 @@ class BasicBlock(nn.Module):
         return out
 
 
-class Bottleneck(nn.Module):
-    expansion = 4
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * 4)
-        self.relu = nn.ReLU(inplace=True)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out += residual
-        out = self.relu(out)
-
-        return out
-
 class detnet_bottleneck(nn.Module):
-    # no expansion
-    # dilation = 2
-    # type B use 1x1 conv
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1, block_type='A'):
@@ -119,6 +75,7 @@ class detnet_bottleneck(nn.Module):
         out += self.downsample(x)
         out = F.relu(out)
         return out
+
 
 class ResNet(nn.Module):
 
@@ -195,8 +152,3 @@ def resnet18(pretrained=False, **kwargs):
         model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
     return model
 
-
-class Flatten(nn.Module):
-    def forward(self, x):
-        N = x.size(0)
-        return x.contiguous().view(N, -1)

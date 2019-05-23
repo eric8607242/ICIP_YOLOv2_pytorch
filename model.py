@@ -1,6 +1,4 @@
-import json 
-
-from utils.resnet import resnet18, Flatten
+from utils.resnet import resnet18
 from lossfn import LossFunction
 from utils.show_img import show_img
 
@@ -39,7 +37,6 @@ class DetectionModel:
         self.anchor_box = anchor_box
 
     def _init_model(self):
-
         if self.pretrained_weights is None :
             class_resnet = models.resnet18(pretrained=True)
             class_dict = class_resnet.state_dict()
@@ -95,70 +92,3 @@ class DetectionModel:
                     show_img(batch_data[0].cpu(), outputs[0].cpu(), batch_label[0].cpu(), 14, 5)
                     print ('Epoch [{}/{}], Step {}, Loss: {:.4f}'.format(epoch+1, num_epochs,i+1, loss.item()))
         torch.save(self.net.state_dict(),self.save_weight_name)
-
-class ClassifierModel:
-    def __init__(self):
-        self.net = resnet18()
-        self.classifier = nn.Sequential(
-                    nn.ReLU(),
-                    Flatten(),
-                    nn.Linear(4508, 13)
-                )
-        self.classifier.cuda()
-        self._init_model()
-
-        self.loss = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=5e-3)
-
-        self.transform = transforms.Compose([ToTensor()])
-        self.data = ICIPClassifierset("./data/train_list.csv", "./data/train_classifier/", transform=self.transform)
-        self.dataloader = DataLoader(self.data, batch_size=50, shuffle=True, num_workers=4)
-
-    def _init_model(self):
-
-        resnet = models.resnet18(pretrained=True)
-        resnet_dict = resnet.state_dict()
-        net_dict = self.net.state_dict()
-
-        resnet_dict = {k: v for k, v in resnet_dict.items() if k in net_dict}
-        net_dict.update(resnet_dict)
-        self.net.load_state_dict(net_dict)
-
-        for net_name, net_param in self.net.named_parameters():
-            if net_name.startswith("layer4") or net_name.startswith("layer3") or net_name.startswith("layer2") or net_name.startswith("layer1"):
-                net_param.requires_grad=False
-            else:
-                net_param.requires_grad=True
-        self.net.cuda()
-
-    def train(self, num_epochs=5):       
-        print("training")
-        for epoch in range(num_epochs):
-            if epoch % 5 == 0:
-                for param_group in self.optimizer.param_groups:
-                    param_group['lr'] *= 0.9
-            for i, local_batch in enumerate(self.dataloader):
-                batch_data = local_batch["image"].float()
-                batch_label = local_batch["label"]
-
-                batch_data = batch_data.cuda()
-                batch_label = batch_label.cuda()
-                
-                # Forward pass
-                outputs = self.net(batch_data)
-                outputs = self.classifier(outputs)
-
-                loss = self.loss(outputs, batch_label)
-                
-                # Backward and optimize
-                self.optimizer.zero_grad()
-                loss.backward(retain_graph=True)
-
-                self.optimizer.step()
-                
-                if (i+1) % 5 == 0:
-                    print ('Epoch [{}/{}], Step {}, Loss: {:.4f}'.format(epoch+1, num_epochs,i+1, loss.item()))
-        torch.save(self.net.state_dict(),'yolo_classification.pth')
-if __name__=="__main__":
-    net = DetectionModel()
-    net.train(num_epochs=10)
