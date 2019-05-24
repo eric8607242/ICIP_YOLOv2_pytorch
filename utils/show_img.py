@@ -13,9 +13,10 @@ import torchvision.transforms.functional as TF
 from PIL import ImageDraw
 classes = ['aquarium', 'bottle', 'bowl', 'box', 'bucket', 'plastic_bag', 'plate', 'styrofoam', 'tire', 'toilet', 'tub', 'washing_machine', 'water_tower']
 
-def show_img(image_array, predict_bnd, label_bnd, S=7, B=2):
+def show_img(image_array, predict_bnd, label_bnd, anchor_box, S=7, B=2):
     """
     """
+    anchor_box = torch.FloatTensor(anchor_box)
     image_size = 448
     image = TF.to_pil_image(image_array.byte())
     draw = ImageDraw.Draw(image)
@@ -23,7 +24,7 @@ def show_img(image_array, predict_bnd, label_bnd, S=7, B=2):
     predict_bnd = predict_bnd.contiguous().view(-1, 38)
     predict_cls = predict_bnd[:, 25:].view(-1, 13)
     predict_bnd = predict_bnd[:, :25].view(-1, B, 5)
-    predict_bnd[:, :, 2] = predict_bnd[:, :, :2].sigmoid()
+    predict_bnd[:, :, :2] = predict_bnd[:, :, :2].sigmoid()
     predict_bnd[:, :, 2:4] = (predict_bnd[:, :, 2:4].sigmoid()*10).exp() * anchor_box
     predict_cls = F.softmax(predict_cls, dim=-1)
 

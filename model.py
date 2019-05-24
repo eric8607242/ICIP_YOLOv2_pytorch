@@ -22,8 +22,6 @@ class DetectionModel:
                 batch_size,
                 object_scale,
                 no_object_scale,
-                coord_scale,
-                class_scale,
             ):
         self.pretrained_weights = pretrained_weights
         self.save_weight_name = save_weight_name
@@ -47,15 +45,14 @@ class DetectionModel:
             net_dict.update(class_dict)
             self.net.load_state_dict(net_dict)
         else:
-            self.net.load_state_dict(torch.load(self.pretrained_weights, map_location="cpu"))
+            self.net.load_state_dict(torch.load(self.pretrained_weights))
 
         for net_name, net_param in self.net.named_parameters():
             if net_name.startswith("layer1"):
                 net_param.requires_grad=False
             else:
                 net_param.requires_grad=True
-
-        #self.net.cuda()
+        self.net.cuda()
 
     def train(  self, 
                 epochs=50, 
@@ -85,10 +82,10 @@ class DetectionModel:
                 optimizer.zero_grad()
                 loss.backward(retain_graph=True)
 
-                optimizer.step()
-                scheduler.step()
+                #optimizer.step()
+                #scheduler.step()
                 
                 if (i+1) % 5 == 0:
-                    show_img(batch_data[0].cpu(), outputs[0].cpu(), batch_label[0].cpu(), 14, 5)
-                    print ('Epoch [{}/{}], Step {}, Loss: {:.4f}'.format(epoch+1, num_epochs,i+1, loss.item()))
+                    show_img(batch_data[0].cpu(), outputs[0].cpu(), batch_label[0].cpu(), self.anchor_box, 14, 5)
+                    print ('Epoch [{}/{}], Step {}, Loss: {:.4f}'.format(epoch+1, epochs,i+1, loss.item()))
         torch.save(self.net.state_dict(),self.save_weight_name)

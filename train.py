@@ -1,6 +1,6 @@
 import json
 from utils.anchor_box import calculate_anchor, get_kmean, get_anchor
-from utils.dataset import Detectionset, ICIPClassifierset
+from utils.dataset import Detectionset
 
 from model import DetectionModel
 
@@ -14,11 +14,11 @@ if __name__ == "__main__":
     with open(CONFIG_PATH) as cb:
         config = json.loads(cb.read())
 
-    calculate_anchor(
-                config["model"]["input_size"],
-                config["train"]["train_annot_folder"],
-                config["train"]["saved_kmean_name"]
-            )
+    #calculate_anchor(
+    #            config["model"]["input_size"],
+    #            config["train"]["train_annot_folder"],
+    #            config["train"]["saved_kmean_name"]
+    #        )
     kmean = get_kmean(config["train"]["pretrained_kmean"])
     anchor_box = get_anchor(kmean)
 
@@ -48,8 +48,6 @@ if __name__ == "__main__":
                 config["train"]["batch_size"],
                 config["train"]["object_scale"],
                 config["train"]["no_object_scale"],
-                config["train"]["coord_scale"],
-                config["train"]["class_scale"],
             )
     model.train(
                 config["train"]["epochs"],

@@ -3,6 +3,7 @@ from os.path import isfile, join
 
 import numpy as np
 import xmltodict
+import PIL.Image
 
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as transforms
@@ -64,16 +65,16 @@ class Detectionset(Dataset):
         center_y = int(height/2 + ymin)
 
         cell_size = self.input_size / self.S
-        cell_x = center_x // cell_size -1
-        cell_y = center_y // cell_size -1
-
+        cell_x = center_x // cell_size
+        cell_y = center_y // cell_size
+        
         relative_x = (center_x - cell_x*cell_size)/cell_size
         relative_y = (center_y - cell_y*cell_size)/cell_size
         
         return (relative_x, 
                 relative_y, 
-                cell_x, 
-                cell_y, 
+                int(cell_x)-1, 
+                int(cell_y)-1, 
                 width/self.input_size, 
                 height/self.input_size)
 
@@ -86,7 +87,7 @@ class Detectionset(Dataset):
         xml_path = self.annotation_path[idx]
         img_path = self.images_path[idx]
 
-        xml_data = parse_xml(xml_data)
+        xml_data = parse_xml(xml_path)
         img_size = xml_data["size"]
 
         image, ratio_x, ratio_y = self._image_processing(img_path, xml_data)
