@@ -26,6 +26,7 @@ def show_img(image_array, predict_bnd, label_bnd, anchor_box, S=7, B=2):
     predict_bnd = predict_bnd[:, :25].view(-1, B, 5)
     predict_bnd[:, :, :2] = predict_bnd[:, :, :2].sigmoid()
     predict_bnd[:, :, 2:4] = (predict_bnd[:, :, 2:4].sigmoid()*10).exp() * anchor_box
+    predict_bnd[:, :, 4] = predict_bnd[:, :, 4].sigmoid()
     predict_cls = F.softmax(predict_cls, dim=-1)
 
     label_cls = label_bnd[:, :, 25:].view(-1, 13)
@@ -33,7 +34,7 @@ def show_img(image_array, predict_bnd, label_bnd, anchor_box, S=7, B=2):
 
     for l in range(0, label_bnd.size(0)):
         for b in range(B):
-            if label_bnd[l, b, 4] != 0:
+            if predict_bnd[l, b, 4] >= 0.6:
                 cell_n = l+1
                 cell_x = cell_n // S +1
                 cell_y = cell_n % S
@@ -69,10 +70,17 @@ def show_img(image_array, predict_bnd, label_bnd, anchor_box, S=7, B=2):
     #             print(l_y1)
                 _, l_class = label_cls[l, :].max(0)
 
-                draw.text((x1, y1), classes[predict_class], fill=128)
-                draw.text((l_x1, l_y1), classes[l_class], fill=256)
+                draw.text((x1, y1), classes[predict_class]+str(predict_bnd[l, b, 4].item()), fill=128)
                 draw.rectangle([x1, y1, x2, y2], outline=128)
-                draw.rectangle([l_x1, l_y1, l_x2, l_y2], outline=256)
+                if label_bnd[l, b, 4] == 1:
+                    draw.text((x1, y1), classes[predict_class]+str(predict_bnd[l, b, 4].item()), fill=(255, 204, 0))
+                    draw.rectangle([x1, y1, x2, y2], outline=(255, 204, 0), width=5)
+                    draw.text((l_x1, l_y1), classes[l_class], fill=256)
+                    draw.rectangle([l_x1, l_y1, l_x2, l_y2], outline=256, width=5)
+                else:
+                    if predict_cls[l, predict_class] > 0.8:
+                        draw.rectangle([x1, y1, x2, y2], outline=128)
+                        draw.text((x1, y1), classes[predict_class]+str(predict_bnd[l, b, 4].item()), fill=128)
 
     image.save("./1.png")
 

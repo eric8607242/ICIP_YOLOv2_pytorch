@@ -98,6 +98,7 @@ class LossFunction(nn.Module):
             noobj_predict_confindence_mask[:, 4+5*b] = 1;
 
         noobj_predict_confidence = noobj_predict[noobj_predict_confindence_mask]
+        noobj_predict_confidence = noobj_predict_confidence.sigmoid()
         noobj_target_confidence = noobj_target[noobj_predict_confindence_mask]
 
         # We only want one bounding box predictor to be respon for each object
@@ -113,18 +114,19 @@ class LossFunction(nn.Module):
             box1_sides = Variable(torch.FloatTensor(box1.size()))
             box2_sides = Variable(torch.FloatTensor(box1.size()))
 
-            box1_sides[:, :2] = box1[:, :2] - 0.5*box1[:, 2:4]
-            box1_sides[:, 2:4] = box1[:, :2] + 0.5*box1[:, 2:4]
+            box1_sides[:, :2] = box1[:, :2]*32 - 0.5*box1[:, 2:4]*448
+            box1_sides[:, 2:4] = box1[:, :2]*32 + 0.5*box1[:, 2:4]*448
 
-            box2_sides[:, :2] = box2[:, :2] - 0.5*box2[:, 2:4]
-            box2_sides[:, 2:4] = box2[:, :2] + 0.5*box2[:, 2:4]
+            box2_sides[:, :2] = box2[:, :2]*32 - 0.5*box2[:, 2:4]*448
+            box2_sides[:, 2:4] = box2[:, :2]*32 + 0.5*box2[:, 2:4]*448
 
             # box1 => [x0, y0, x1, y1], box2 => [x0, y0, x1, y1]
             iou = self.compute_iou(box1_sides[:, :4], box2_sides[:, :4])
             respon_iou_index = torch.argmax(box2[:, 4])
-
-            coord_respon_mask[i, respon_iou_index] = 1
-            bnd_target_iou[i, respon_iou_index] = iou[respon_iou_index]
+            
+            if box2[respon_iou_index, 4] == 1:
+                coord_respon_mask[i, respon_iou_index] = 1
+                bnd_target_iou[i, respon_iou_index] = iou[respon_iou_index]
     
         bnd_predict_respon = bnd_predict[coord_respon_mask].view(-1, 5).float().cuda()
 
@@ -136,7 +138,6 @@ class LossFunction(nn.Module):
         xy_loss = F.mse_loss(bnd_predict_respon[:, :2], bnd_target_respon[:, :2])
         wh_loss = F.mse_loss(bnd_predict_respon[:, 2:4], bnd_target_respon[:, 2:4])
         class_loss = F.mse_loss(class_predict.float(), class_target.float())
-
         total_loss = self.lambda_coord*(xy_loss + wh_loss) + 2*confidence_loss + self.lambda_noobj*noobj_loss + class_loss
 
         return total_loss

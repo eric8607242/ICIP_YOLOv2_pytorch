@@ -82,8 +82,8 @@ class DetectionModel:
                 optimizer.zero_grad()
                 loss.backward(retain_graph=True)
 
-                #optimizer.step()
-                #scheduler.step()
+                optimizer.step()
+                scheduler.step()
                 
                 if (i+1) % 5 == 0:
                     show_img(batch_data[0].cpu(), outputs[0].cpu(), batch_label[0].cpu(), self.anchor_box, 14, 5)
