@@ -48,6 +48,8 @@ if __name__ == "__main__":
                 config["train"]["batch_size"],
                 config["train"]["object_scale"],
                 config["train"]["no_object_scale"],
+                config["train"]["coord_scale"],
+                config["train"]["class_scale"]
             )
     model.train(
                 config["train"]["epochs"],

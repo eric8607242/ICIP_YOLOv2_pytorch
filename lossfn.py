@@ -4,7 +4,15 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 class LossFunction(nn.Module):
-    def __init__(self, S, B, C, lambda_coord, lambda_noobj):
+    def __init__(self, 
+                S, 
+                B, 
+                C, 
+                object_scale, 
+                no_object_scale,
+                coord_scale,
+                class_scale
+            ):
         super(LossFunction, self).__init__()
         self.S = S
         self.B = B
@@ -14,8 +22,10 @@ class LossFunction(nn.Module):
 
         # Increase the loss from bounding box coordinate predicts
         # and decrease the loss from cofidence predicts for boxes # that don't contain object
-        self.lambda_coord = lambda_coord
-        self.lambda_noobj = lambda_noobj
+        self.object_scale = object_scale
+        self.no_object_scale = no_object_scale
+        self.coord_scale = coord_scale
+        self.class_scale = class_scale
 
     def compute_iou(self, box1, box2):
 
@@ -77,9 +87,9 @@ class LossFunction(nn.Module):
         # predict 5 values, so the top 10 values is the box predict
         coord_predict = predicts[coord_mask].view(-1, self.C_predict)
         bnd_predict = coord_predict[:, :self.B_predict].contiguous().view(-1, self.B, 5)
-        bnd_predict[:, :, :2] = bnd_predict[:, :, :2].sigmoid()
+        bnd_predict[:, :, :2] = (bnd_predict[:, :, :2]*0.5).sigmoid()
         bnd_predict[:, :, 2:4]  = (bnd_predict[:, :, 2:4].sigmoid()*10).exp() * anchor_box
-        bnd_predict[:, :, 4] = bnd_predict[:, :, 4].sigmoid()
+        bnd_predict[:, :, 4] = (bnd_predict[:, :, 4]*0.5).sigmoid()
 
         class_predict = coord_predict[:, self.B_predict:]
         class_predict = F.softmax(class_predict, dim=1)
@@ -133,12 +143,18 @@ class LossFunction(nn.Module):
         bnd_target_respon_iou = bnd_target_iou[coord_respon_mask].view(-1, 5).float().cuda()
         bnd_target_respon = bnd_target[coord_respon_mask].view(-1, 5).float().cuda()
 
-        confidence_loss = F.mse_loss(bnd_predict_respon[:, 4], bnd_target_respon_iou[:, 4])
-        noobj_loss = F.mse_loss(noobj_predict_confidence.float(), noobj_target_confidence.float()) * self.lambda_noobj
-        xy_loss = F.mse_loss(bnd_predict_respon[:, :2], bnd_target_respon[:, :2])
-        wh_loss = F.mse_loss(bnd_predict_respon[:, 2:4], bnd_target_respon[:, 2:4])
-        class_loss = F.mse_loss(class_predict.float(), class_target.float())
-        total_loss = self.lambda_coord*(xy_loss + wh_loss) + 2*confidence_loss + self.lambda_noobj*noobj_loss + class_loss
+        print("============================================")
+        confidence_loss = F.mse_loss(bnd_predict_respon[:, 4], bnd_target_respon_iou[:, 4], size_average = False)
+        print("confidenct:", confidence_loss)
+        noobj_loss = F.mse_loss(noobj_predict_confidence.float(), noobj_target_confidence.float(), size_average = False)
+        print("noobj_loss", noobj_loss)
+        xy_loss = F.mse_loss(bnd_predict_respon[:, :2], bnd_target_respon[:, :2], size_average = False)
+        print("xy_loss", xy_loss)
+        wh_loss = F.mse_loss(bnd_predict_respon[:, 2:4], bnd_target_respon[:, 2:4], size_average = False)
+        print("wh_loss", wh_loss)
+        class_loss = F.mse_loss(class_predict.float(), class_target.float(), size_average = False)
+        print("class_loss", class_loss)
+        total_loss = self.coord_scale*(xy_loss + wh_loss) + self.object_scale*confidence_loss + self.no_object_scale*noobj_loss + self.class_scale*class_loss
 
-        return total_loss
+        return total_loss/N
 
