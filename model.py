@@ -22,6 +22,8 @@ class DetectionModel:
                 batch_size,
                 object_scale,
                 no_object_scale,
+                coord_scale,
+                class_scale
             ):
         self.pretrained_weights = pretrained_weights
         self.save_weight_name = save_weight_name
@@ -29,13 +31,13 @@ class DetectionModel:
         self.net = resnet18()
         self._init_model()
 
-        self.loss = LossFunction(14, 5, 13, object_scale, no_object_scale)
+        self.loss = LossFunction(14, 5, 13, object_scale, no_object_scale, coord_scale, class_scale)
         self.dataloader = dataloader
 
         self.anchor_box = anchor_box
 
     def _init_model(self):
-        if self.pretrained_weights is None :
+        if self.pretrained_weights is "" :
             class_resnet = models.resnet18(pretrained=True)
             class_dict = class_resnet.state_dict()
 
@@ -48,7 +50,7 @@ class DetectionModel:
             self.net.load_state_dict(torch.load(self.pretrained_weights))
 
         for net_name, net_param in self.net.named_parameters():
-            if net_name.startswith("layer1"):
+            if net_name.startswith("layer1") or net_name.startswith("layer2"):
                 net_param.requires_grad=False
             else:
                 net_param.requires_grad=True

@@ -11,20 +11,20 @@
     "train" : {
         "train_image_folder" : "./data/train_cdc/train_images/",
         "train_annot_folder" : "./data/train_cdc/train_annotations/",
-        "pretrained_weights" : "./pretrained_model/weight/detection1.pth",
+        "pretrained_weights" : "./pretrained_model/weight/detection3.pth",
         "pretrained_kmean" : "./pretrained_model/kmean.sav",
         "batch_size" : 32,
-        "learning_rate" : 5e-4,
+        "learning_rate" : 5e-5,
         "epochs" : 10,
-        "step_size" : 5,
+        "step_size" : 3,
         "decay_ratio" : 0.5,
 
         "object_scale" : 5,
-        "no_object_scale" : 0.4,
-        "coord_scale" : 4,
-        "class_scale" : 2,
+        "no_object_scale" : 0.5,
+        "coord_scale" : 1,
+        "class_scale" : 1,
 
-        "saved_weight_name" : "./pretrained_model/weight/detection2.pth",
+        "saved_weight_name" : "./pretrained_model/weight/detection3.pth",
         "saved_kmean_name" : "./pretrained_model/kmean.sav",
         "debug" : ""
     }

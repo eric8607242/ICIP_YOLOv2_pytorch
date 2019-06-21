@@ -38,17 +38,12 @@ def show_img(image_array, predict_bnd, label_bnd, anchor_box, S=7, B=2):
                 cell_n = l+1
                 cell_x = cell_n // S +1
                 cell_y = cell_n % S
-    #             print(cell_n)
-    #             print(cell_x)
-    #             print(cell_y)
+                
                 cell_x = cell_x*(448/S)
                 cell_y = cell_y*(448/S)
 
                 p_index = 0
                 p_value = 0
-                #print("-------------------")
-                #print(predict_bnd[l])
-                #print(label_bnd[l])
 
                 width = predict_bnd[l, b, 2+p_index] *448
                 height = predict_bnd[l, b, 3+p_index] *448
@@ -66,8 +61,7 @@ def show_img(image_array, predict_bnd, label_bnd, anchor_box, S=7, B=2):
 
                 l_x1, l_y1 = l_center_x - 0.5*l_width, l_center_y - 0.5*l_height
                 l_x2, l_y2 = l_center_x + 0.5*l_width, l_center_y + 0.5*l_height
-    #             print(l_x1)
-    #             print(l_y1)
+                
                 _, l_class = label_cls[l, :].max(0)
 
                 draw.text((x1, y1), classes[predict_class]+str(predict_bnd[l, b, 4].item()), fill=128)

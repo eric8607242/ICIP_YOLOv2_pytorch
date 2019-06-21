@@ -87,9 +87,9 @@ class LossFunction(nn.Module):
         # predict 5 values, so the top 10 values is the box predict
         coord_predict = predicts[coord_mask].view(-1, self.C_predict)
         bnd_predict = coord_predict[:, :self.B_predict].contiguous().view(-1, self.B, 5)
-        bnd_predict[:, :, :2] = (bnd_predict[:, :, :2]*0.5).sigmoid()
-        bnd_predict[:, :, 2:4]  = (bnd_predict[:, :, 2:4].sigmoid()*10).exp() * anchor_box
-        bnd_predict[:, :, 4] = (bnd_predict[:, :, 4]*0.5).sigmoid()
+        bnd_predict[:, :, :2] = (bnd_predict[:, :, :2]).sigmoid()
+        bnd_predict[:, :, 2:4]  = (bnd_predict[:, :, 2:4]).tanh().exp() * anchor_box
+        bnd_predict[:, :, 4] = (bnd_predict[:, :, 4]).sigmoid()
 
         class_predict = coord_predict[:, self.B_predict:]
         class_predict = F.softmax(class_predict, dim=1)
@@ -143,17 +143,11 @@ class LossFunction(nn.Module):
         bnd_target_respon_iou = bnd_target_iou[coord_respon_mask].view(-1, 5).float().cuda()
         bnd_target_respon = bnd_target[coord_respon_mask].view(-1, 5).float().cuda()
 
-        print("============================================")
         confidence_loss = F.mse_loss(bnd_predict_respon[:, 4], bnd_target_respon_iou[:, 4], size_average = False)
-        print("confidenct:", confidence_loss)
         noobj_loss = F.mse_loss(noobj_predict_confidence.float(), noobj_target_confidence.float(), size_average = False)
-        print("noobj_loss", noobj_loss)
         xy_loss = F.mse_loss(bnd_predict_respon[:, :2], bnd_target_respon[:, :2], size_average = False)
-        print("xy_loss", xy_loss)
         wh_loss = F.mse_loss(bnd_predict_respon[:, 2:4], bnd_target_respon[:, 2:4], size_average = False)
-        print("wh_loss", wh_loss)
         class_loss = F.mse_loss(class_predict.float(), class_target.float(), size_average = False)
-        print("class_loss", class_loss)
         total_loss = self.coord_scale*(xy_loss + wh_loss) + self.object_scale*confidence_loss + self.no_object_scale*noobj_loss + self.class_scale*class_loss
 
         return total_loss/N
