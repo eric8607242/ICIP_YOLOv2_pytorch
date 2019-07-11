@@ -38,13 +38,13 @@ A implementation of YOLOv2 with pytorch for ICIP.
 ### LossFunction
 #### Paper中的lossfunction
 這個是論文中，計算bounding box的長寬和起始位置的方式
-* $b_x = \sigma(t_x) + c_x$
-* $b_y = \sigma(t_y) + c_y$
-    * $b_x$ 和 $b_y$為真正predict value，而$t_x$ 和 $t_y$為network predict出來的value
+* <img src="http://latex.codecogs.com/gif.latex?b_x = \sigma(t_x) + c_x" />
+* <img src="http://latex.codecogs.com/gif.latex?b_y = \sigma(t_y) + c_y" />
+    * <img src="http://latex.codecogs.com/gif.latex?b_x" /> 和 <img src="http://latex.codecogs.com/gif.latex?b_y" />為真正predict value，而<img src="http://latex.codecogs.com/gif.latex?t_x" /> 和 <img src="http://latex.codecogs.com/gif.latex?t_y" />為network predict出來的value
     * 在network predict出value之後會先經過sigmoid function並且加上cell的offset才是真正的位置
-* $b_w = p_w * e^{t_w}$
-* $b_h = p_h * e^{t_h}$
-    * $b_w$ 和 $b_h$為真正predict value，而$t_w$ 和 $t_h$為network predict出來的value，$p_w$ 和 $p_h$為anchor box的尺寸
+* <img src="http://latex.codecogs.com/gif.latex?b_w = p_w * e^{t_w}" />
+* <img src="http://latex.codecogs.com/gif.latex?b_h = p_h * e^{t_h}" />
+    * <img src="http://latex.codecogs.com/gif.latex?b_w" />  和 <img src="http://latex.codecogs.com/gif.latex?b_h" />為真正predict value，而<img src="http://latex.codecogs.com/gif.latex?t_w" /> 和 <img src="http://latex.codecogs.com/gif.latex?t_h" />為network predict出來的value，$p_w$ 和 $p_h$為anchor box的尺寸
     * 在network predict出value之後會先經過exp並且乘上anchor box的尺寸裁為真正的尺寸
 #### Improve Lossfunction
 * 依照paper中所提的lossfunction實做的過程中，我們發現雖然x, y可以達到良好的預測，但是w, h的結果卻很差，因此我們對於lossfunction做了一些改進，改進理由如下
@@ -54,8 +54,8 @@ A implementation of YOLOv2 with pytorch for ICIP.
     * 而對於經過exp的wh，則最好的範圍是在-1～1之間，一旦稍微超出便會導致loss過大，且gradient過大，便需要model自己學習將predict的值壓縮在-1～1之間
     * 對於這兩項，我們認為導致了整個model學習的方向不同，容易使model產生不穩定的情況，尤其是對於weight random initialization的情況下
 * 對於wh進行改進後的lossfunction
-    * $b_w = p_w * e^{tanh(t_w)}$
-    * $b_h = p_h * e^{tanh(t_h)}$
+    * <img src="http://latex.codecogs.com/gif.latex?b_w = p_w * e^{tanh(t_w)}" />
+    * <img src="http://latex.codecogs.com/gif.latex?b_h = p_h * e^{tanh(t_h)}" />
 * 這樣的改進可以讓model對於predict wh時，也如xy一樣理想範圍在-5～5之間，而實際上可以是無窮範圍內
 * 並且我們得到的結果是w,h對於準確度高，且收斂速度比較快（因為tanh相當於進行了normalize） 
 
